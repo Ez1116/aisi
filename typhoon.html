@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>颱風系統建模工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: #f0f0f0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .workspace {
+            display: flex;
+            gap: 20px;
+        }
+
+        .toolbar {
+            width: 250px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            height: fit-content;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+        }
+
+        canvas {
+            display: block;
+            cursor: crosshair;
+            max-width: 100%;
+            height: auto;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .tool-section {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tool-section:last-child {
+            border-bottom: none;
+        }
+
+        .tool-section h3 {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .tool-btn {
+            padding: 8px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .tool-btn:hover {
+            border-color: #007bff;
+            background: #f0f8ff;
+        }
+
+        .tool-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .layer-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .layer-item input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .layer-item label {
+            flex: 1;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .layer-item input[type="range"] {
+            width: 60px;
+        }
+
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .color-btn {
+            width: 100%;
+            height: 35px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .color-btn:hover {
+            transform: scale(1.1);
+            border-color: #333;
+        }
+
+        .color-btn.active {
+            border-color: #000;
+            border-width: 3px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 8px 0;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .control-group input[type="number"],
+        .control-group input[type="text"] {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .action-btn.primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .action-btn.primary:hover {
+            background: #0056b3;
+        }
+
+        .action-btn.secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .action-btn.secondary:hover {
+            background: #545b62;
+        }
+
+        .action-btn.danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .action-btn.danger:hover {
+            background: #c82333;
+        }
+
+        .text-input-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: none;
+        }
+
+        .text-input-panel.active {
+            display: block;
+        }
+
+        .text-input-panel input {
+            width: 300px;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .text-input-panel button {
+            padding: 8px 16px;
+            margin-right: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .info-text {
+            font-size: 11px;
+            color: #888;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        .symbol-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .symbol-btn {
+            padding: 10px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .symbol-btn:hover {
+            border-color: #007bff;
+            background: #f0f8ff;
+        }
+
+        .symbol-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>颱風系統建模工具</h1>
+        
+        <div class="workspace">
+            <!-- 工具列 -->
+            <div class="toolbar">
+                <!-- 筆刷設定 -->
+                <div class="tool-section">
+                    <h3>筆刷設定</h3>
+                    <div class="control-group">
+                        <label>筆刷大小: <span id="brushSizeValue">5</span>px</label>
+                        <input type="range" id="brushSize" min="1" max="50" value="5">
+                    </div>
+                    <div class="control-group">
+                        <label>透明度: <span id="opacityValue">100</span>%</label>
+                        <input type="range" id="opacity" min="10" max="100" value="100">
+                    </div>
+                </div>
+
+                <!-- 顏色選擇 -->
+                <div class="tool-section">
+                    <h3>顏色選擇</h3>
+                    <div class="color-palette">
+                        <!-- 颱風路徑 -->
+                        <div class="color-btn active" style="background: #FF0000;" data-color="#FF0000" title="颱風路徑(紅)"></div>
+                        <!-- 海溫 -->
+                        <div class="color-btn" style="background: #0000FF;" data-color="#0000FF" title="冷海溫(藍)"></div>
+                        <div class="color-btn" style="background: #FF8800;" data-color="#FF8800" title="熱海溫(橙)"></div>
+                        <!-- 河川 -->
+                        <div class="color-btn" style="background: #4169E1;" data-color="#4169E1" title="河川(淺藍)"></div>
+                    </div>
+                    <div class="info-text">
+                        顏色圖例:<br>
+                        紅-颱風路徑 | 藍/橙-海溫高低<br>
+                        淺藍-河川
+                    </div>
+                </div>
+
+                <!-- 繪圖工具 -->
+                <div class="tool-section">
+                    <h3>繪圖工具</h3>
+                    <div class="tool-grid">
+                        <button class="tool-btn active" data-tool="pen">✏️ 自由繪製</button>
+                        <button class="tool-btn" data-tool="line">📏 直線</button>
+                        <button class="tool-btn" data-tool="arrow">➡️ 箭頭</button>
+                        <button class="tool-btn" data-tool="curve">〰️ 曲線</button>
+                        <button class="tool-btn" data-tool="circle">⭕ 圓形</button>
+                        <button class="tool-btn" data-tool="rect">⬜ 矩形</button>
+                        <button class="tool-btn" data-tool="text">T 文字</button>
+                    </div>
+                </div>
+
+                <!-- 氣象符號 -->
+                <div class="tool-section">
+                    <h3>氣象符號</h3>
+                    <div class="symbol-grid">
+                        <button class="symbol-btn" data-symbol="H">H</button>
+                        <button class="symbol-btn" data-symbol="L">L</button>
+                        <button class="symbol-btn" data-symbol="🌀">🌀</button>
+                        <button class="symbol-btn" data-symbol="⛰️">⛰️</button>
+                        <button class="symbol-btn" data-symbol="🌊">🌊</button>
+                        <button class="symbol-btn" data-symbol="💨">💨</button>
+                    </div>
+                </div>
+
+                <!-- 快速操作 -->
+                <div class="tool-section">
+                    <h3>快速操作</h3>
+                    <button class="action-btn secondary" id="undo">↶ 復原</button>
+                    <button class="action-btn danger" id="deleteSelected" disabled>🗑️ 刪除選取</button>
+                    <button class="action-btn danger" id="clearCanvas">🗑️ 清除繪製</button>
+                </div>
+
+                <!-- 圖層管理 -->
+                <div class="tool-section">
+                    <h3>圖層管理</h3>
+                    <div id="layerList">
+                        <div class="layer-item">
+                            <input type="checkbox" id="layer-base" checked>
+                            <label for="layer-base">底圖</label>
+                        </div>
+                        <div class="layer-item">
+                            <input type="checkbox" id="layer-drawing" checked>
+                            <label for="layer-drawing">繪製層</label>
+                            <input type="range" id="drawingOpacity" min="0" max="100" value="100" title="透明度">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按鈕 -->
+                <div class="tool-section">
+                    <button class="action-btn primary" id="saveProject">💾 儲存專案(JSON)</button>
+                    <button class="action-btn primary" id="loadProject">📂 載入專案</button>
+                    <button class="action-btn secondary" id="exportImage">📷 匯出圖片(PNG)</button>
+                </div>
+            </div>
+
+            <!-- 畫布區域 -->
+            <div class="canvas-container">
+                <canvas id="baseCanvas"></canvas>
+                <canvas id="drawingCanvas"></canvas>
+                
+                <!-- 文字輸入面板 -->
+                <div class="text-input-panel" id="textInputPanel">
+                    <input type="text" id="textInput" placeholder="輸入文字標註...">
+                    <button onclick="confirmText()">確定</button>
+                    <button onclick="cancelText()">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" style="display: none;" accept=".json">
+
+    <script>
+        // 畫布設定
+        const baseCanvas = document.getElementById('baseCanvas');
+        const drawingCanvas = document.getElementById('drawingCanvas');
+        const baseCtx = baseCanvas.getContext('2d');
+        const drawingCtx = drawingCanvas.getContext('2d');
+
+        let canvasWidth = 1000;
+        let canvasHeight = 0;
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let currentColor = '#FF0000';
+        let brushSize = 5;
+        let opacity = 1;
+        let startX, startY;
+        let currentSymbol = null;
+        let history = [];
+        let currentPath = [];
+
+        // 物件導向繪圖系統
+        let drawingObjects = [];
+        let selectedObject = null;
+        let nextId = 1;
+
+        // 變形操作狀態
+        let dragMode = null;  // null, 'move', 'rotate', 'scale-nw', 'scale-ne', 'scale-sw', 'scale-se', 'scale-n', 'scale-s', 'scale-w', 'scale-e'
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let originalObjectState = null;
+
+        // 載入底圖
+        const baseImage = new Image();
+        baseImage.src = 'map.png';
+        baseImage.onload = function() {
+            canvasWidth = baseImage.naturalWidth;
+            canvasHeight = baseImage.naturalHeight;
+
+            baseCanvas.width = canvasWidth;
+            baseCanvas.height = canvasHeight;
+            drawingCanvas.width = canvasWidth;
+            drawingCanvas.height = canvasHeight;
+
+            baseCtx.drawImage(baseImage, 0, 0, canvasWidth, canvasHeight);
+            saveHistory();
+        };
+
+        // 工具切換
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentTool = this.dataset.tool;
+            });
+        });
+
+        // 顏色選擇
+        document.querySelectorAll('.color-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentColor = this.dataset.color;
+            });
+        });
+
+        // 符號按鈕
+        document.querySelectorAll('.symbol-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const symbol = this.dataset.symbol;
+                currentTool = 'symbol';
+                currentSymbol = symbol;
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.symbol-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // 筆刷設定
+        document.getElementById('brushSize').addEventListener('input', function() {
+            brushSize = this.value;
+            document.getElementById('brushSizeValue').textContent = this.value;
+        });
+
+        document.getElementById('opacity').addEventListener('input', function() {
+            opacity = this.value / 100;
+            document.getElementById('opacityValue').textContent = this.value;
+        });
+
+        // 繪圖事件
+        let textToPlace = null;
+        let pendingTextPosition = null;
+
+        // 座標轉換函數（處理畫布縮放）
+        function getCanvasCoordinates(e) {
+            const rect = drawingCanvas.getBoundingClientRect();
+            const scaleX = drawingCanvas.width / rect.width;
+            const scaleY = drawingCanvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
+        drawingCanvas.addEventListener('mousedown', startDrawing);
+        drawingCanvas.addEventListener('mousemove', draw);
+        drawingCanvas.addEventListener('mouseup', stopDrawing);
+        drawingCanvas.addEventListener('mouseout', stopDrawing);
+
+        function startDrawing(e) {
+            const coords = getCanvasCoordinates(e);
+            startX = coords.x;
+            startY = coords.y;
+
+            // 優先檢查：是否點擊到已選中物件的控制點
+            if (selectedObject) {
+                const bounds = getObjectBounds(selectedObject);
+                if (bounds) {
+                    const control = detectControlClick(coords.x, coords.y, bounds);
+                    if (control) {
+                        if (control === 'delete') {
+                            // 刪除物件
+                            const index = drawingObjects.findIndex(obj => obj.id === selectedObject.id);
+                            if (index !== -1) {
+                                drawingObjects.splice(index, 1);
+                                selectedObject = null;
+                                renderAllObjects();
+                                updateDeleteButton();
+                            }
+                            return;
+                        }
+                        // 開始拖曳操作（移動/縮放/旋轉）
+                        dragMode = control;
+                        dragStartX = coords.x;
+                        dragStartY = coords.y;
+                        originalObjectState = cloneObject(selectedObject);
+                        isDrawing = true;
+                        return;
+                    }
+                }
+            }
+
+            // 檢查是否點擊到任何物件（自動選取）
+            const clickedObject = findObjectAt(coords.x, coords.y);
+            if (clickedObject) {
+                selectedObject = clickedObject;
+                renderAllObjects();
+                updateDeleteButton();
+                return;
+            }
+
+            // 未點擊到物件，取消選取並執行繪圖工具
+            selectedObject = null;
+            updateDeleteButton();
+            renderAllObjects();
+
+            // 開始繪圖操作
+            isDrawing = true;
+            currentPath = [{x: startX, y: startY}];
+
+            if (currentTool === 'symbol') {
+                // 符號模式：開始拖曳調整大小（類似圓形）
+                return;
+            }
+
+            if (currentTool === 'text') {
+                pendingTextPosition = {x: startX, y: startY};
+                showTextInput();
+                isDrawing = false;
+                return;
+            }
+
+            if (currentTool === 'pen') {
+                drawingCtx.beginPath();
+                drawingCtx.moveTo(startX, startY);
+            }
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+
+            const coords = getCanvasCoordinates(e);
+            const currentX = coords.x;
+            const currentY = coords.y;
+
+            // 處理變形拖曳
+            if (dragMode && selectedObject && originalObjectState) {
+                const dx = currentX - dragStartX;
+                const dy = currentY - dragStartY;
+
+                // 恢復原始狀態
+                Object.assign(selectedObject, cloneObject(originalObjectState));
+
+                const bounds = getObjectBounds(originalObjectState);
+                if (!bounds) return;
+
+                if (dragMode === 'move') {
+                    moveObject(selectedObject, dx, dy);
+                } else if (dragMode === 'rotate') {
+                    const centerX = bounds.x + bounds.width / 2;
+                    const centerY = bounds.y + bounds.height / 2;
+                    const angle1 = Math.atan2(dragStartY - centerY, dragStartX - centerX);
+                    const angle2 = Math.atan2(currentY - centerY, currentX - centerX);
+                    const angle = angle2 - angle1;
+                    rotateObject(selectedObject, angle, centerX, centerY);
+                } else if (dragMode.startsWith('scale-')) {
+                    // 計算縮放比例
+                    const dir = dragMode.split('-')[1];
+                    let scaleX = 1, scaleY = 1;
+                    let originX = bounds.x, originY = bounds.y;
+
+                    if (dir === 'se') {
+                        originX = bounds.x;
+                        originY = bounds.y;
+                        scaleX = (bounds.width + dx) / bounds.width;
+                        scaleY = (bounds.height + dy) / bounds.height;
+                    } else if (dir === 'sw') {
+                        originX = bounds.x + bounds.width;
+                        originY = bounds.y;
+                        scaleX = (bounds.width - dx) / bounds.width;
+                        scaleY = (bounds.height + dy) / bounds.height;
+                    } else if (dir === 'ne') {
+                        originX = bounds.x;
+                        originY = bounds.y + bounds.height;
+                        scaleX = (bounds.width + dx) / bounds.width;
+                        scaleY = (bounds.height - dy) / bounds.height;
+                    } else if (dir === 'nw') {
+                        originX = bounds.x + bounds.width;
+                        originY = bounds.y + bounds.height;
+                        scaleX = (bounds.width - dx) / bounds.width;
+                        scaleY = (bounds.height - dy) / bounds.height;
+                    } else if (dir === 'e') {
+                        originX = bounds.x;
+                        scaleX = (bounds.width + dx) / bounds.width;
+                    } else if (dir === 'w') {
+                        originX = bounds.x + bounds.width;
+                        scaleX = (bounds.width - dx) / bounds.width;
+                    } else if (dir === 's') {
+                        originY = bounds.y;
+                        scaleY = (bounds.height + dy) / bounds.height;
+                    } else if (dir === 'n') {
+                        originY = bounds.y + bounds.height;
+                        scaleY = (bounds.height - dy) / bounds.height;
+                    }
+
+                    scaleObject(selectedObject, scaleX, scaleY, originX, originY);
+                }
+
+                renderAllObjects();
+                return;
+            }
+
+            currentPath.push({x: currentX, y: currentY});
+
+            drawingCtx.globalAlpha = opacity;
+            drawingCtx.strokeStyle = currentColor;
+            drawingCtx.fillStyle = currentColor;
+            drawingCtx.lineWidth = brushSize;
+            drawingCtx.lineCap = 'round';
+            drawingCtx.lineJoin = 'round';
+
+            if (currentTool === 'pen') {
+                drawingCtx.lineTo(currentX, currentY);
+                drawingCtx.stroke();
+            } else if (currentTool === 'line' || currentTool === 'arrow') {
+                redrawCanvas();
+                drawingCtx.globalAlpha = opacity;
+                drawingCtx.strokeStyle = currentColor;
+                drawingCtx.lineWidth = brushSize;
+                
+                drawingCtx.beginPath();
+                drawingCtx.moveTo(startX, startY);
+                drawingCtx.lineTo(currentX, currentY);
+                drawingCtx.stroke();
+
+                if (currentTool === 'arrow') {
+                    drawArrowHead(startX, startY, currentX, currentY);
+                }
+            } else if (currentTool === 'curve') {
+                if (currentPath.length < 3) return;
+                redrawCanvas();
+                drawingCtx.globalAlpha = opacity;
+                drawingCtx.strokeStyle = currentColor;
+                drawingCtx.lineWidth = brushSize;
+                
+                drawingCtx.beginPath();
+                drawingCtx.moveTo(currentPath[0].x, currentPath[0].y);
+                
+                for (let i = 1; i < currentPath.length - 2; i++) {
+                    const xc = (currentPath[i].x + currentPath[i + 1].x) / 2;
+                    const yc = (currentPath[i].y + currentPath[i + 1].y) / 2;
+                    drawingCtx.quadraticCurveTo(currentPath[i].x, currentPath[i].y, xc, yc);
+                }
+                
+                drawingCtx.quadraticCurveTo(
+                    currentPath[currentPath.length - 2].x,
+                    currentPath[currentPath.length - 2].y,
+                    currentPath[currentPath.length - 1].x,
+                    currentPath[currentPath.length - 1].y
+                );
+                drawingCtx.stroke();
+            } else if (currentTool === 'circle') {
+                redrawCanvas();
+                drawingCtx.globalAlpha = opacity;
+                drawingCtx.strokeStyle = currentColor;
+                drawingCtx.lineWidth = brushSize;
+                
+                const radius = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2));
+                drawingCtx.beginPath();
+                drawingCtx.arc(startX, startY, radius, 0, 2 * Math.PI);
+                drawingCtx.stroke();
+            } else if (currentTool === 'rect') {
+                redrawCanvas();
+                drawingCtx.globalAlpha = opacity;
+                drawingCtx.strokeStyle = currentColor;
+                drawingCtx.lineWidth = brushSize;
+
+                drawingCtx.strokeRect(startX, startY, currentX - startX, currentY - startY);
+            } else if (currentTool === 'symbol') {
+                redrawCanvas();
+                drawingCtx.globalAlpha = opacity;
+                drawingCtx.fillStyle = currentColor;
+
+                // 根據拖曳距離計算符號大小
+                const distance = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2));
+                const fontSize = Math.max(20, distance);
+
+                // 繪製符號預覽
+                drawingCtx.font = `${fontSize}px Arial`;
+                drawingCtx.fillText(currentSymbol, startX, startY);
+            }
+        }
+
+        function stopDrawing(e) {
+            if (isDrawing) {
+                isDrawing = false;
+
+                // 結束變形拖曳
+                if (dragMode) {
+                    dragMode = null;
+                    originalObjectState = null;
+                    return;
+                }
+
+                // 創建繪圖物件
+                let newObject = {
+                    id: nextId++,
+                    color: currentColor,
+                    brushSize: brushSize,
+                    opacity: opacity
+                };
+
+                if (currentTool === 'pen') {
+                    if (currentPath.length > 0) {
+                        newObject.type = 'pen';
+                        newObject.path = [...currentPath];
+                        drawingObjects.push(newObject);
+                    }
+                } else if (currentTool === 'line' && e) {
+                    const coords = getCanvasCoordinates(e);
+                    newObject.type = 'line';
+                    newObject.x1 = startX;
+                    newObject.y1 = startY;
+                    newObject.x2 = coords.x;
+                    newObject.y2 = coords.y;
+                    drawingObjects.push(newObject);
+                } else if (currentTool === 'arrow' && e) {
+                    const coords = getCanvasCoordinates(e);
+                    newObject.type = 'arrow';
+                    newObject.x1 = startX;
+                    newObject.y1 = startY;
+                    newObject.x2 = coords.x;
+                    newObject.y2 = coords.y;
+                    drawingObjects.push(newObject);
+                } else if (currentTool === 'circle' && e) {
+                    const coords = getCanvasCoordinates(e);
+                    const radius = Math.sqrt(Math.pow(coords.x - startX, 2) + Math.pow(coords.y - startY, 2));
+                    if (radius > 0) {
+                        newObject.type = 'circle';
+                        newObject.cx = startX;
+                        newObject.cy = startY;
+                        newObject.radius = radius;
+                        drawingObjects.push(newObject);
+                    }
+                } else if (currentTool === 'rect' && e) {
+                    const coords = getCanvasCoordinates(e);
+                    const width = coords.x - startX;
+                    const height = coords.y - startY;
+                    if (width !== 0 && height !== 0) {
+                        newObject.type = 'rect';
+                        newObject.x = startX;
+                        newObject.y = startY;
+                        newObject.width = width;
+                        newObject.height = height;
+                        drawingObjects.push(newObject);
+                    }
+                } else if (currentTool === 'curve') {
+                    if (currentPath.length > 2) {
+                        newObject.type = 'curve';
+                        newObject.path = [...currentPath];
+                        drawingObjects.push(newObject);
+                    }
+                } else if (currentTool === 'symbol' && e) {
+                    const coords = getCanvasCoordinates(e);
+                    const distance = Math.sqrt(Math.pow(coords.x - startX, 2) + Math.pow(coords.y - startY, 2));
+                    if (distance > 5) {  // 最小拖曳距離
+                        newObject.type = 'symbol';
+                        newObject.symbol = currentSymbol;
+                        newObject.x = startX;
+                        newObject.y = startY;
+                        newObject.fontSize = Math.max(20, distance);
+                        drawingObjects.push(newObject);
+                    }
+                }
+
+                // 重新渲染所有物件
+                renderAllObjects();
+                currentPath = [];
+            }
+        }
+
+        function drawArrowHead(fromX, fromY, toX, toY) {
+            const headLength = brushSize * 3;
+            const angle = Math.atan2(toY - fromY, toX - fromX);
+            
+            drawingCtx.beginPath();
+            drawingCtx.moveTo(toX, toY);
+            drawingCtx.lineTo(
+                toX - headLength * Math.cos(angle - Math.PI / 6),
+                toY - headLength * Math.sin(angle - Math.PI / 6)
+            );
+            drawingCtx.moveTo(toX, toY);
+            drawingCtx.lineTo(
+                toX - headLength * Math.cos(angle + Math.PI / 6),
+                toY - headLength * Math.sin(angle + Math.PI / 6)
+            );
+            drawingCtx.stroke();
+        }
+
+        function showTextInput() {
+            const panel = document.getElementById('textInputPanel');
+            const input = document.getElementById('textInput');
+            
+            if (textToPlace) {
+                placeText(textToPlace);
+                textToPlace = null;
+            } else {
+                panel.classList.add('active');
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        function confirmText() {
+            const text = document.getElementById('textInput').value;
+            if (text && pendingTextPosition) {
+                placeText(text);
+            }
+            cancelText();
+        }
+
+        function cancelText() {
+            document.getElementById('textInputPanel').classList.remove('active');
+            pendingTextPosition = null;
+        }
+
+        function placeText(text) {
+            if (!pendingTextPosition) return;
+
+            // 創建文字物件
+            const textObject = {
+                id: nextId++,
+                type: 'text',
+                text: text,
+                x: pendingTextPosition.x,
+                y: pendingTextPosition.y,
+                color: currentColor,
+                fontSize: brushSize * 4,
+                opacity: opacity,
+                brushSize: brushSize
+            };
+
+            drawingObjects.push(textObject);
+            renderAllObjects();
+            pendingTextPosition = null;
+        }
+
+        // 點擊檢測輔助函數
+        function pointToLineDistance(px, py, x1, y1, x2, y2) {
+            const A = px - x1;
+            const B = py - y1;
+            const C = x2 - x1;
+            const D = y2 - y1;
+
+            const dot = A * C + B * D;
+            const lenSq = C * C + D * D;
+            let param = -1;
+            if (lenSq !== 0) param = dot / lenSq;
+
+            let xx, yy;
+            if (param < 0) {
+                xx = x1;
+                yy = y1;
+            } else if (param > 1) {
+                xx = x2;
+                yy = y2;
+            } else {
+                xx = x1 + param * C;
+                yy = y1 + param * D;
+            }
+
+            const dx = px - xx;
+            const dy = py - yy;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function pointToPathDistance(px, py, path) {
+            let minDist = Infinity;
+            for (let i = 1; i < path.length; i++) {
+                const dist = pointToLineDistance(px, py, path[i-1].x, path[i-1].y, path[i].x, path[i].y);
+                minDist = Math.min(minDist, dist);
+            }
+            return minDist;
+        }
+
+        function isPointInRect(px, py, x, y, width, height) {
+            const minX = Math.min(x, x + width);
+            const maxX = Math.max(x, x + width);
+            const minY = Math.min(y, y + height);
+            const maxY = Math.max(y, y + height);
+            return px >= minX && px <= maxX && py >= minY && py <= maxY;
+        }
+
+        // 尋找點擊位置的物件（不改變選取狀態）
+        function findObjectAt(x, y) {
+            const threshold = 15; // 點擊容差
+
+            // 從後往前檢查（最後繪製的在最上層）
+            for (let i = drawingObjects.length - 1; i >= 0; i--) {
+                const obj = drawingObjects[i];
+                let hit = false;
+
+                if (obj.type === 'pen' || obj.type === 'curve') {
+                    const dist = pointToPathDistance(x, y, obj.path);
+                    hit = dist <= threshold + obj.brushSize / 2;
+                } else if (obj.type === 'line' || obj.type === 'arrow') {
+                    const dist = pointToLineDistance(x, y, obj.x1, obj.y1, obj.x2, obj.y2);
+                    hit = dist <= threshold + obj.brushSize / 2;
+                } else if (obj.type === 'circle') {
+                    const distFromCenter = Math.sqrt(Math.pow(x - obj.cx, 2) + Math.pow(y - obj.cy, 2));
+                    hit = Math.abs(distFromCenter - obj.radius) <= threshold + obj.brushSize / 2;
+                } else if (obj.type === 'rect') {
+                    const inOuter = isPointInRect(x, y, obj.x - threshold, obj.y - threshold,
+                        obj.width + 2*threshold, obj.height + 2*threshold);
+                    const inInner = isPointInRect(x, y, obj.x + threshold, obj.y + threshold,
+                        obj.width - 2*threshold, obj.height - 2*threshold);
+                    hit = inOuter && !inInner;
+                } else if (obj.type === 'text') {
+                    const fontSize = obj.fontSize || 30;
+                    const estimatedWidth = obj.text.length * fontSize * 0.6;
+                    hit = isPointInRect(x, y, obj.x, obj.y - fontSize, estimatedWidth, fontSize);
+                } else if (obj.type === 'symbol') {
+                    const fontSize = obj.fontSize || 30;
+                    const estimatedWidth = obj.symbol.length * fontSize * 0.8;
+                    hit = isPointInRect(x, y, obj.x, obj.y - fontSize, estimatedWidth, fontSize);
+                }
+
+                if (hit) {
+                    return obj;
+                }
+            }
+
+            return null;
+        }
+
+        // 選取物件
+        function selectObjectAt(x, y) {
+            const threshold = 15; // 點擊容差
+            selectedObject = null;
+
+            // 從後往前檢查（最後繪製的在最上層）
+            for (let i = drawingObjects.length - 1; i >= 0; i--) {
+                const obj = drawingObjects[i];
+                let hit = false;
+
+                if (obj.type === 'pen' || obj.type === 'curve') {
+                    const dist = pointToPathDistance(x, y, obj.path);
+                    hit = dist <= threshold + obj.brushSize / 2;
+                } else if (obj.type === 'line' || obj.type === 'arrow') {
+                    const dist = pointToLineDistance(x, y, obj.x1, obj.y1, obj.x2, obj.y2);
+                    hit = dist <= threshold + obj.brushSize / 2;
+                } else if (obj.type === 'circle') {
+                    const distFromCenter = Math.sqrt(Math.pow(x - obj.cx, 2) + Math.pow(y - obj.cy, 2));
+                    // 檢查是否在圓的邊緣附近
+                    hit = Math.abs(distFromCenter - obj.radius) <= threshold + obj.brushSize / 2;
+                } else if (obj.type === 'rect') {
+                    // 檢查是否在矩形邊界附近
+                    const inOuter = isPointInRect(x, y, obj.x - threshold, obj.y - threshold,
+                        obj.width + 2*threshold, obj.height + 2*threshold);
+                    const inInner = isPointInRect(x, y, obj.x + threshold, obj.y + threshold,
+                        obj.width - 2*threshold, obj.height - 2*threshold);
+                    hit = inOuter && !inInner;
+                } else if (obj.type === 'text') {
+                    const fontSize = obj.fontSize || 30;
+                    const estimatedWidth = obj.text.length * fontSize * 0.6;
+                    hit = isPointInRect(x, y, obj.x, obj.y - fontSize, estimatedWidth, fontSize);
+                } else if (obj.type === 'symbol') {
+                    const fontSize = obj.fontSize || 30;
+                    const estimatedWidth = obj.symbol.length * fontSize * 0.8;
+                    hit = isPointInRect(x, y, obj.x, obj.y - fontSize, estimatedWidth, fontSize);
+                }
+
+                if (hit) {
+                    selectedObject = obj;
+                    renderAllObjects();
+                    updateDeleteButton();
+                    return;
+                }
+            }
+
+            // 沒有選中任何物件
+            renderAllObjects();
+            updateDeleteButton();
+        }
+
+        function updateDeleteButton() {
+            const deleteBtn = document.getElementById('deleteSelected');
+            if (deleteBtn) {
+                deleteBtn.disabled = !selectedObject;
+            }
+        }
+
+        // 繪製變形控制點
+        function drawTransformControls(bounds) {
+            const handleSize = 14;
+            const padding = 15;
+
+            // 繪製控制點（白色填充，綠色邊框）
+            function drawHandle(x, y) {
+                drawingCtx.fillStyle = '#FFFFFF';
+                drawingCtx.strokeStyle = '#00FF00';
+                drawingCtx.lineWidth = 3;
+                drawingCtx.fillRect(x - handleSize/2, y - handleSize/2, handleSize, handleSize);
+                drawingCtx.strokeRect(x - handleSize/2, y - handleSize/2, handleSize, handleSize);
+            }
+
+            // 8個控制點位置
+            const handles = [
+                {x: bounds.x - padding, y: bounds.y - padding, type: 'nw'},  // 左上
+                {x: bounds.x + bounds.width/2, y: bounds.y - padding, type: 'n'},  // 上
+                {x: bounds.x + bounds.width + padding, y: bounds.y - padding, type: 'ne'},  // 右上
+                {x: bounds.x + bounds.width + padding, y: bounds.y + bounds.height/2, type: 'e'},  // 右
+                {x: bounds.x + bounds.width + padding, y: bounds.y + bounds.height + padding, type: 'se'},  // 右下
+                {x: bounds.x + bounds.width/2, y: bounds.y + bounds.height + padding, type: 's'},  // 下
+                {x: bounds.x - padding, y: bounds.y + bounds.height + padding, type: 'sw'},  // 左下
+                {x: bounds.x - padding, y: bounds.y + bounds.height/2, type: 'w'}  // 左
+            ];
+
+            handles.forEach(h => drawHandle(h.x, h.y));
+
+            // 繪製旋轉控制點
+            const rotX = bounds.x + bounds.width / 2;
+            const rotY = bounds.y - padding - 30;
+
+            // 連接線
+            drawingCtx.strokeStyle = '#00FF00';
+            drawingCtx.lineWidth = 1;
+            drawingCtx.beginPath();
+            drawingCtx.moveTo(rotX, bounds.y - padding);
+            drawingCtx.lineTo(rotX, rotY + 12);
+            drawingCtx.stroke();
+
+            // 旋轉把手（圓形）
+            drawingCtx.fillStyle = '#FFFFFF';
+            drawingCtx.strokeStyle = '#00FF00';
+            drawingCtx.lineWidth = 3;
+            drawingCtx.beginPath();
+            drawingCtx.arc(rotX, rotY, 12, 0, 2 * Math.PI);
+            drawingCtx.fill();
+            drawingCtx.stroke();
+
+            // 繪製刪除按鈕
+            const delX = bounds.x + bounds.width + padding;
+            const delY = bounds.y - padding;
+            const delRadius = 15;
+
+            // 紅色圓形背景
+            drawingCtx.fillStyle = '#FF0000';
+            drawingCtx.beginPath();
+            drawingCtx.arc(delX, delY, delRadius, 0, 2 * Math.PI);
+            drawingCtx.fill();
+
+            // 白色 X
+            drawingCtx.strokeStyle = '#FFFFFF';
+            drawingCtx.lineWidth = 3;
+            drawingCtx.lineCap = 'round';
+            const offset = 6;
+            drawingCtx.beginPath();
+            drawingCtx.moveTo(delX - offset, delY - offset);
+            drawingCtx.lineTo(delX + offset, delY + offset);
+            drawingCtx.moveTo(delX + offset, delY - offset);
+            drawingCtx.lineTo(delX - offset, delY + offset);
+            drawingCtx.stroke();
+        }
+
+        // 檢測點擊了哪個控制點
+        function detectControlClick(x, y, bounds) {
+            const handleSize = 14;
+            const padding = 15;
+
+            // 檢測刪除按鈕
+            const delX = bounds.x + bounds.width + padding;
+            const delY = bounds.y - padding;
+            if (Math.sqrt((x - delX)**2 + (y - delY)**2) <= 15) {
+                return 'delete';
+            }
+
+            // 檢測旋轉控制點
+            const rotX = bounds.x + bounds.width / 2;
+            const rotY = bounds.y - padding - 30;
+            if (Math.sqrt((x - rotX)**2 + (y - rotY)**2) <= 12) {
+                return 'rotate';
+            }
+
+            // 檢測8個縮放控制點
+            const handles = [
+                {x: bounds.x - padding, y: bounds.y - padding, type: 'scale-nw'},
+                {x: bounds.x + bounds.width/2, y: bounds.y - padding, type: 'scale-n'},
+                {x: bounds.x + bounds.width + padding, y: bounds.y - padding, type: 'scale-ne'},
+                {x: bounds.x + bounds.width + padding, y: bounds.y + bounds.height/2, type: 'scale-e'},
+                {x: bounds.x + bounds.width + padding, y: bounds.y + bounds.height + padding, type: 'scale-se'},
+                {x: bounds.x + bounds.width/2, y: bounds.y + bounds.height + padding, type: 'scale-s'},
+                {x: bounds.x - padding, y: bounds.y + bounds.height + padding, type: 'scale-sw'},
+                {x: bounds.x - padding, y: bounds.y + bounds.height/2, type: 'scale-w'}
+            ];
+
+            for (let handle of handles) {
+                if (Math.abs(x - handle.x) <= handleSize/2 && Math.abs(y - handle.y) <= handleSize/2) {
+                    return handle.type;
+                }
+            }
+
+            // 檢測是否在物件範圍內（用於移動）
+            if (x >= bounds.x - padding && x <= bounds.x + bounds.width + padding &&
+                y >= bounds.y - padding && y <= bounds.y + bounds.height + padding) {
+                return 'move';
+            }
+
+            return null;
+        }
+
+        // 移動物件
+        function moveObject(obj, dx, dy) {
+            if (obj.type === 'pen' || obj.type === 'curve') {
+                obj.path = obj.path.map(p => ({x: p.x + dx, y: p.y + dy}));
+            } else if (obj.type === 'line' || obj.type === 'arrow') {
+                obj.x1 += dx; obj.y1 += dy;
+                obj.x2 += dx; obj.y2 += dy;
+            } else if (obj.type === 'circle') {
+                obj.cx += dx; obj.cy += dy;
+            } else if (obj.type === 'rect') {
+                obj.x += dx; obj.y += dy;
+            } else if (obj.type === 'text') {
+                obj.x += dx; obj.y += dy;
+            } else if (obj.type === 'symbol') {
+                obj.x += dx; obj.y += dy;
+            }
+        }
+
+        // 縮放物件
+        function scaleObject(obj, scaleX, scaleY, originX, originY) {
+            if (obj.type === 'pen' || obj.type === 'curve') {
+                obj.path = obj.path.map(p => ({
+                    x: originX + (p.x - originX) * scaleX,
+                    y: originY + (p.y - originY) * scaleY
+                }));
+            } else if (obj.type === 'line' || obj.type === 'arrow') {
+                obj.x1 = originX + (obj.x1 - originX) * scaleX;
+                obj.y1 = originY + (obj.y1 - originY) * scaleY;
+                obj.x2 = originX + (obj.x2 - originX) * scaleX;
+                obj.y2 = originY + (obj.y2 - originY) * scaleY;
+            } else if (obj.type === 'circle') {
+                obj.cx = originX + (obj.cx - originX) * scaleX;
+                obj.cy = originY + (obj.cy - originY) * scaleY;
+                obj.radius *= Math.max(scaleX, scaleY);
+            } else if (obj.type === 'rect') {
+                const newX = originX + (obj.x - originX) * scaleX;
+                const newY = originY + (obj.y - originY) * scaleY;
+                obj.width *= scaleX;
+                obj.height *= scaleY;
+                obj.x = newX;
+                obj.y = newY;
+            } else if (obj.type === 'text') {
+                obj.x = originX + (obj.x - originX) * scaleX;
+                obj.y = originY + (obj.y - originY) * scaleY;
+                obj.fontSize *= Math.max(Math.abs(scaleX), Math.abs(scaleY));
+            } else if (obj.type === 'symbol') {
+                obj.x = originX + (obj.x - originX) * scaleX;
+                obj.y = originY + (obj.y - originY) * scaleY;
+                obj.fontSize *= Math.max(Math.abs(scaleX), Math.abs(scaleY));
+            }
+        }
+
+        // 旋轉物件
+        function rotateObject(obj, angle, centerX, centerY) {
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+
+            function rotatePoint(x, y) {
+                const dx = x - centerX;
+                const dy = y - centerY;
+                return {
+                    x: centerX + dx * cos - dy * sin,
+                    y: centerY + dx * sin + dy * cos
+                };
+            }
+
+            if (obj.type === 'pen' || obj.type === 'curve') {
+                obj.path = obj.path.map(p => rotatePoint(p.x, p.y));
+            } else if (obj.type === 'line' || obj.type === 'arrow') {
+                const p1 = rotatePoint(obj.x1, obj.y1);
+                const p2 = rotatePoint(obj.x2, obj.y2);
+                obj.x1 = p1.x; obj.y1 = p1.y;
+                obj.x2 = p2.x; obj.y2 = p2.y;
+            } else if (obj.type === 'circle') {
+                const center = rotatePoint(obj.cx, obj.cy);
+                obj.cx = center.x;
+                obj.cy = center.y;
+            } else if (obj.type === 'rect') {
+                // 對於矩形，轉換為路徑點再旋轉（簡化處理）
+                const corners = [
+                    {x: obj.x, y: obj.y},
+                    {x: obj.x + obj.width, y: obj.y},
+                    {x: obj.x + obj.width, y: obj.y + obj.height},
+                    {x: obj.x, y: obj.y + obj.height}
+                ];
+                const rotated = corners.map(c => rotatePoint(c.x, c.y));
+                // 更新為新的邊界
+                const xs = rotated.map(p => p.x);
+                const ys = rotated.map(p => p.y);
+                obj.x = Math.min(...xs);
+                obj.y = Math.min(...ys);
+                obj.width = Math.max(...xs) - obj.x;
+                obj.height = Math.max(...ys) - obj.y;
+            } else if (obj.type === 'text') {
+                const pos = rotatePoint(obj.x, obj.y);
+                obj.x = pos.x;
+                obj.y = pos.y;
+            } else if (obj.type === 'symbol') {
+                const pos = rotatePoint(obj.x, obj.y);
+                obj.x = pos.x;
+                obj.y = pos.y;
+            }
+        }
+
+        // 深拷貝物件（用於儲存原始狀態）
+        function cloneObject(obj) {
+            return JSON.parse(JSON.stringify(obj));
+        }
+
+        // 渲染所有物件
+        function renderAllObjects() {
+            // 清空繪圖層
+            drawingCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+            // 繪製所有物件
+            drawingObjects.forEach(obj => {
+                drawingCtx.globalAlpha = obj.opacity;
+                drawingCtx.strokeStyle = obj.color;
+                drawingCtx.fillStyle = obj.color;
+                drawingCtx.lineWidth = obj.brushSize;
+                drawingCtx.lineCap = 'round';
+                drawingCtx.lineJoin = 'round';
+
+                if (obj.type === 'pen') {
+                    if (obj.path && obj.path.length > 1) {
+                        drawingCtx.beginPath();
+                        drawingCtx.moveTo(obj.path[0].x, obj.path[0].y);
+                        for (let i = 1; i < obj.path.length; i++) {
+                            drawingCtx.lineTo(obj.path[i].x, obj.path[i].y);
+                        }
+                        drawingCtx.stroke();
+                    }
+                } else if (obj.type === 'line') {
+                    drawingCtx.beginPath();
+                    drawingCtx.moveTo(obj.x1, obj.y1);
+                    drawingCtx.lineTo(obj.x2, obj.y2);
+                    drawingCtx.stroke();
+                } else if (obj.type === 'arrow') {
+                    drawingCtx.beginPath();
+                    drawingCtx.moveTo(obj.x1, obj.y1);
+                    drawingCtx.lineTo(obj.x2, obj.y2);
+                    drawingCtx.stroke();
+
+                    const headLength = obj.brushSize * 3;
+                    const angle = Math.atan2(obj.y2 - obj.y1, obj.x2 - obj.x1);
+                    drawingCtx.beginPath();
+                    drawingCtx.moveTo(obj.x2, obj.y2);
+                    drawingCtx.lineTo(
+                        obj.x2 - headLength * Math.cos(angle - Math.PI / 6),
+                        obj.y2 - headLength * Math.sin(angle - Math.PI / 6)
+                    );
+                    drawingCtx.moveTo(obj.x2, obj.y2);
+                    drawingCtx.lineTo(
+                        obj.x2 - headLength * Math.cos(angle + Math.PI / 6),
+                        obj.y2 - headLength * Math.sin(angle + Math.PI / 6)
+                    );
+                    drawingCtx.stroke();
+                } else if (obj.type === 'circle') {
+                    drawingCtx.beginPath();
+                    drawingCtx.arc(obj.cx, obj.cy, obj.radius, 0, 2 * Math.PI);
+                    drawingCtx.stroke();
+                } else if (obj.type === 'rect') {
+                    drawingCtx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+                } else if (obj.type === 'curve' && obj.path && obj.path.length > 2) {
+                    drawingCtx.beginPath();
+                    drawingCtx.moveTo(obj.path[0].x, obj.path[0].y);
+                    for (let i = 1; i < obj.path.length; i++) {
+                        const prev = obj.path[i - 1];
+                        const curr = obj.path[i];
+                        drawingCtx.quadraticCurveTo(prev.x, prev.y, curr.x, curr.y);
+                    }
+                    drawingCtx.stroke();
+                } else if (obj.type === 'text') {
+                    drawingCtx.font = `${obj.fontSize || 30}px Arial`;
+                    drawingCtx.fillText(obj.text, obj.x, obj.y);
+                } else if (obj.type === 'symbol') {
+                    drawingCtx.font = `${obj.fontSize || 30}px Arial`;
+                    drawingCtx.fillText(obj.symbol, obj.x, obj.y);
+                }
+
+                // 如果是選中的物件，繪製高亮邊框和變形控制點
+                if (selectedObject && obj.id === selectedObject.id) {
+                    drawingCtx.globalAlpha = 1;
+                    drawingCtx.strokeStyle = '#00FF00';
+                    drawingCtx.lineWidth = 3;
+                    drawingCtx.setLineDash([5, 5]);
+
+                    const bounds = getObjectBounds(obj);
+                    if (bounds) {
+                        drawingCtx.strokeRect(bounds.x - 15, bounds.y - 15, bounds.width + 30, bounds.height + 30);
+                        drawingCtx.setLineDash([]);
+                        // 繪製變形控制點
+                        drawTransformControls(bounds);
+                    }
+                }
+            });
+
+            drawingCtx.globalAlpha = 1;
+        }
+
+        // 取得物件邊界
+        function getObjectBounds(obj) {
+            if (obj.type === 'pen' || obj.type === 'curve') {
+                if (!obj.path || obj.path.length === 0) return null;
+                const xs = obj.path.map(p => p.x);
+                const ys = obj.path.map(p => p.y);
+                return {
+                    x: Math.min(...xs),
+                    y: Math.min(...ys),
+                    width: Math.max(...xs) - Math.min(...xs),
+                    height: Math.max(...ys) - Math.min(...ys)
+                };
+            } else if (obj.type === 'line' || obj.type === 'arrow') {
+                return {
+                    x: Math.min(obj.x1, obj.x2),
+                    y: Math.min(obj.y1, obj.y2),
+                    width: Math.abs(obj.x2 - obj.x1),
+                    height: Math.abs(obj.y2 - obj.y1)
+                };
+            } else if (obj.type === 'circle') {
+                return {
+                    x: obj.cx - obj.radius,
+                    y: obj.cy - obj.radius,
+                    width: obj.radius * 2,
+                    height: obj.radius * 2
+                };
+            } else if (obj.type === 'rect') {
+                return {
+                    x: obj.x,
+                    y: obj.y,
+                    width: obj.width,
+                    height: obj.height
+                };
+            } else if (obj.type === 'text') {
+                return {
+                    x: obj.x,
+                    y: obj.y - (obj.fontSize || 30),
+                    width: (obj.text.length * (obj.fontSize || 30) * 0.6),
+                    height: obj.fontSize || 30
+                };
+            } else if (obj.type === 'symbol') {
+                const fontSize = obj.fontSize || 30;
+                // 符號通常只有1-2個字元，計算大小
+                const symbolLength = obj.symbol.length;
+                return {
+                    x: obj.x,
+                    y: obj.y - fontSize,
+                    width: symbolLength * fontSize * 0.8,
+                    height: fontSize
+                };
+            }
+            return null;
+        }
+
+        // 歷史記錄
+        function saveHistory() {
+            const imageData = drawingCtx.getImageData(0, 0, canvasWidth, canvasHeight);
+            history.push(imageData);
+            if (history.length > 20) {
+                history.shift();
+            }
+        }
+
+        function redrawCanvas() {
+            renderAllObjects();
+        }
+
+        // 復原功能（移除最後一個物件）
+        document.getElementById('undo').addEventListener('click', function() {
+            if (drawingObjects.length > 0) {
+                drawingObjects.pop();
+                selectedObject = null;
+                renderAllObjects();
+            }
+        });
+
+        // 清除畫布
+        document.getElementById('clearCanvas').addEventListener('click', function() {
+            if (confirm('確定要清除所有繪製內容嗎?')) {
+                drawingObjects = [];
+                selectedObject = null;
+                renderAllObjects();
+            }
+        });
+
+        // 刪除選中的物件
+        document.getElementById('deleteSelected').addEventListener('click', function() {
+            if (selectedObject) {
+                const index = drawingObjects.findIndex(obj => obj.id === selectedObject.id);
+                if (index !== -1) {
+                    drawingObjects.splice(index, 1);
+                    selectedObject = null;
+                    renderAllObjects();
+                    updateDeleteButton();
+                }
+            }
+        });
+
+        // 圖層控制
+        document.getElementById('layer-base').addEventListener('change', function() {
+            baseCanvas.style.display = this.checked ? 'block' : 'none';
+        });
+
+        document.getElementById('layer-drawing').addEventListener('change', function() {
+            drawingCanvas.style.display = this.checked ? 'block' : 'none';
+        });
+
+        document.getElementById('drawingOpacity').addEventListener('input', function() {
+            drawingCanvas.style.opacity = this.value / 100;
+        });
+
+        // 匯出圖片
+        document.getElementById('exportImage').addEventListener('click', function() {
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = canvasWidth;
+            exportCanvas.height = canvasHeight;
+            const exportCtx = exportCanvas.getContext('2d');
+            
+            exportCtx.drawImage(baseCanvas, 0, 0);
+            exportCtx.drawImage(drawingCanvas, 0, 0);
+            
+            exportCanvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `typhoon_model_${new Date().getTime()}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        });
+
+        // 儲存專案
+        document.getElementById('saveProject').addEventListener('click', function() {
+            const projectData = {
+                version: '2.0',
+                timestamp: new Date().toISOString(),
+                canvasWidth: canvasWidth,
+                canvasHeight: canvasHeight,
+                drawingObjects: drawingObjects,
+                nextId: nextId,
+                settings: {
+                    brushSize: brushSize,
+                    opacity: opacity,
+                    currentColor: currentColor,
+                    currentTool: currentTool
+                }
+            };
+
+            const dataStr = JSON.stringify(projectData, null, 2);
+            const blob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `typhoon_project_${new Date().getTime()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // 載入專案
+        document.getElementById('loadProject').addEventListener('click', function() {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const projectData = JSON.parse(event.target.result);
+
+                    // 支援舊版和新版專案格式
+                    if (projectData.version === '2.0' && projectData.drawingObjects) {
+                        // 新版物件式專案
+                        drawingObjects = projectData.drawingObjects || [];
+                        nextId = projectData.nextId || (drawingObjects.length > 0 ? Math.max(...drawingObjects.map(o => o.id)) + 1 : 1);
+                        selectedObject = null;
+                        renderAllObjects();
+                    } else if (projectData.drawingData) {
+                        // 舊版圖片式專案
+                        const img = new Image();
+                        img.onload = function() {
+                            drawingCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+                            drawingCtx.drawImage(img, 0, 0);
+                        };
+                        img.src = projectData.drawingData;
+                    }
+
+                    // 載入設定
+                    if (projectData.settings) {
+                        brushSize = projectData.settings.brushSize || 5;
+                        opacity = projectData.settings.opacity || 1;
+                        currentColor = projectData.settings.currentColor || '#FF0000';
+                        currentTool = projectData.settings.currentTool || 'pen';
+
+                        document.getElementById('brushSize').value = brushSize;
+                        document.getElementById('brushSizeValue').textContent = brushSize;
+                        document.getElementById('opacity').value = opacity * 100;
+                        document.getElementById('opacityValue').textContent = Math.round(opacity * 100);
+                    }
+
+                    alert('專案載入成功!');
+                } catch (error) {
+                    alert('載入失敗: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // 文字輸入Enter鍵
+        document.getElementById('textInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                confirmText();
+            }
+        });
+    </script>
+</body>
+</html>
