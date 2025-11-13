@@ -328,12 +328,12 @@
                         <div class="color-btn" style="background: #0000FF;" data-color="#0000FF" title="冷海溫(藍)"></div>
                         <div class="color-btn" style="background: #FF8800;" data-color="#FF8800" title="熱海溫(橙)"></div>
                         <!-- 河川 -->
-                        <div class="color-btn" style="background: #4169E1;" data-color="#4169E1" title="河川(淺藍)"></div>
+                        <div class="color-btn" style="background: #20B2AA;" data-color="#20B2AA" title="河川(青綠)"></div>
                     </div>
                     <div class="info-text">
                         顏色圖例:<br>
                         紅-颱風路徑 | 藍/橙-海溫高低<br>
-                        淺藍-河川
+                        青綠-河川
                     </div>
                 </div>
 
@@ -343,8 +343,8 @@
                     <div class="tool-grid">
                         <button class="tool-btn active" data-tool="pen">✏️ 自由繪製</button>
                         <button class="tool-btn" data-tool="line">📏 直線</button>
-                        <button class="tool-btn" data-tool="arrow">➡️ 箭頭</button>
-                        <button class="tool-btn" data-tool="curve">〰️ 曲線</button>
+                        <button class="tool-btn" data-tool="arrow">➡️ 箭頭直線</button>
+                        <button class="tool-btn" data-tool="curve">〰️➡️ 箭頭曲線</button>
                         <button class="tool-btn" data-tool="circle">⭕ 圓形</button>
                         <button class="tool-btn" data-tool="rect">⬜ 矩形</button>
                         <button class="tool-btn" data-tool="text">T 文字</button>
@@ -443,12 +443,142 @@
         let dragStartY = 0;
         let originalObjectState = null;
 
+        // --- LocalStorage 自動儲存功能 ---
+        const localStorageKey = "TyphoonDrawingData";
+        const MAX_DRAWING_OBJECTS = 1000; // 繪圖對象上限
+
+        // 自動儲存狀態到 localStorage
+        function autoSaveState() {
+            const stateToSave = {
+                currentSession: {
+                    canvasWidth: canvasWidth,
+                    canvasHeight: canvasHeight,
+                    drawingObjects: [...drawingObjects],
+                    nextId: nextId,
+                    layers: {
+                        baseVisible: document.getElementById('layer-base').checked,
+                        drawingVisible: document.getElementById('layer-drawing').checked,
+                        drawingOpacity: parseFloat(document.getElementById('drawingOpacity').value)
+                    },
+                    lastSaved: new Date().toISOString()
+                },
+                metadata: {
+                    totalObjects: drawingObjects.length,
+                    version: "1.0"
+                }
+            };
+
+            // 檢查繪圖對象總數限制
+            if (stateToSave.metadata.totalObjects > MAX_DRAWING_OBJECTS) {
+                console.warn(`繪圖對象數量 (${stateToSave.metadata.totalObjects}) 超過上限 (${MAX_DRAWING_OBJECTS})，不進行自動儲存`);
+                return;
+            }
+
+            try {
+                localStorage.setItem(localStorageKey, JSON.stringify(stateToSave));
+                console.log(`✅ 自動儲存成功：${stateToSave.metadata.totalObjects} 個繪圖對象`);
+            } catch (e) {
+                console.error('自動儲存失敗:', e);
+                handleStorageError(e);
+            }
+        }
+
+        // 處理儲存錯誤
+        function handleStorageError(error) {
+            if (error.name === 'QuotaExceededError') {
+                alert('⚠️ 瀏覽器儲存空間不足\n\n原因：繪圖數據過多\n\n建議：\n1. 點擊「💾 儲存專案(JSON)」將作品保存到本地\n2. 清除部分舊的繪圖內容\n3. 繼續正常使用（將不會自動儲存）');
+                console.warn('localStorage 空間不足，已停止自動儲存');
+            } else {
+                console.error('儲存時發生未知錯誤:', error);
+            }
+        }
+
+        // 從 localStorage 載入狀態
+        function loadStateFromLocalStorage() {
+            try {
+                const storedData = localStorage.getItem(localStorageKey);
+
+                if (!storedData) {
+                    console.log('沒有儲存的資料，使用預設狀態');
+                    return false;
+                }
+
+                const parsedData = JSON.parse(storedData);
+
+                // 檢查版本兼容性
+                if (!parsedData.currentSession) {
+                    console.warn('舊版本數據格式，使用預設狀態');
+                    return false;
+                }
+
+                const session = parsedData.currentSession;
+
+                // 恢復繪圖數據
+                if (session.canvasWidth) canvasWidth = session.canvasWidth;
+                if (session.canvasHeight) canvasHeight = session.canvasHeight;
+                if (session.drawingObjects) drawingObjects = [...session.drawingObjects];
+                if (session.nextId) nextId = session.nextId;
+
+                console.log(`✅ 成功載入狀態：${parsedData.metadata.totalObjects} 個繪圖對象`);
+                return true;
+            } catch (e) {
+                console.error('載入狀態失敗:', e);
+                return false;
+            }
+        }
+
+        // 從狀態更新 UI
+        function updateUIFromState() {
+            try {
+                const storedData = localStorage.getItem(localStorageKey);
+                if (!storedData) return;
+
+                const parsedData = JSON.parse(storedData);
+                const session = parsedData.currentSession;
+
+                // 恢復圖層設置
+                if (session.layers) {
+                    const layerBase = document.getElementById('layer-base');
+                    const layerDrawing = document.getElementById('layer-drawing');
+                    const drawingOpacity = document.getElementById('drawingOpacity');
+
+                    if (layerBase && session.layers.baseVisible !== undefined) {
+                        layerBase.checked = session.layers.baseVisible;
+                        baseCanvas.style.display = session.layers.baseVisible ? 'block' : 'none';
+                    }
+
+                    if (layerDrawing && session.layers.drawingVisible !== undefined) {
+                        layerDrawing.checked = session.layers.drawingVisible;
+                        drawingCanvas.style.display = session.layers.drawingVisible ? 'block' : 'none';
+                    }
+
+                    if (drawingOpacity && session.layers.drawingOpacity !== undefined) {
+                        drawingOpacity.value = session.layers.drawingOpacity;
+                        drawingCanvas.style.opacity = session.layers.drawingOpacity / 100;
+                    }
+                }
+
+                // 重繪圖表
+                renderAllObjects();
+
+                console.log('✅ UI 已從儲存狀態恢復');
+            } catch (e) {
+                console.error('更新 UI 失敗:', e);
+            }
+        }
+
         // 載入底圖
         const baseImage = new Image();
         baseImage.src = 'map.png';
         baseImage.onload = function() {
-            canvasWidth = baseImage.naturalWidth;
-            canvasHeight = baseImage.naturalHeight;
+            // 先嘗試從 localStorage 載入狀態
+            const stateLoaded = loadStateFromLocalStorage();
+
+            // 如果沒有載入狀態，使用底圖的原始尺寸
+            if (!stateLoaded || !canvasWidth || !canvasHeight) {
+                canvasWidth = baseImage.naturalWidth;
+                canvasHeight = baseImage.naturalHeight;
+            }
 
             baseCanvas.width = canvasWidth;
             baseCanvas.height = canvasHeight;
@@ -457,6 +587,12 @@
 
             baseCtx.drawImage(baseImage, 0, 0, canvasWidth, canvasHeight);
             saveHistory();
+
+            // 如果成功載入狀態，更新 UI 並重繪
+            if (stateLoaded) {
+                updateUIFromState();
+                console.log('✅ 應用程式已從上次狀態恢復');
+            }
         };
 
         // 工具切換
@@ -695,16 +831,16 @@
                 drawingCtx.globalAlpha = opacity;
                 drawingCtx.strokeStyle = currentColor;
                 drawingCtx.lineWidth = brushSize;
-                
+
                 drawingCtx.beginPath();
                 drawingCtx.moveTo(currentPath[0].x, currentPath[0].y);
-                
+
                 for (let i = 1; i < currentPath.length - 2; i++) {
                     const xc = (currentPath[i].x + currentPath[i + 1].x) / 2;
                     const yc = (currentPath[i].y + currentPath[i + 1].y) / 2;
                     drawingCtx.quadraticCurveTo(currentPath[i].x, currentPath[i].y, xc, yc);
                 }
-                
+
                 drawingCtx.quadraticCurveTo(
                     currentPath[currentPath.length - 2].x,
                     currentPath[currentPath.length - 2].y,
@@ -712,6 +848,22 @@
                     currentPath[currentPath.length - 1].y
                 );
                 drawingCtx.stroke();
+
+                // 添加箭頭：使用距離足夠遠的點計算方向
+                if (currentPath.length >= 2) {
+                    const minDistance = brushSize * 4; // 最小距離為筆刷大小的4倍
+                    const directionPoint = findDirectionPoint(currentPath, minDistance);
+                    const lastPoint = currentPath[currentPath.length - 1];
+
+                    if (directionPoint) {
+                        drawArrowHead(
+                            directionPoint.x,
+                            directionPoint.y,
+                            lastPoint.x,
+                            lastPoint.y
+                        );
+                    }
+                }
             } else if (currentTool === 'circle') {
                 redrawCanvas();
                 drawingCtx.globalAlpha = opacity;
@@ -822,6 +974,7 @@
                         newObject.x = startX;
                         newObject.y = startY;
                         newObject.fontSize = Math.max(20, distance);
+                        newObject.rotation = 0;  // 初始旋轉角度
                         drawingObjects.push(newObject);
                     }
                 }
@@ -829,13 +982,37 @@
                 // 重新渲染所有物件
                 renderAllObjects();
                 currentPath = [];
+
+                // 自動儲存狀態
+                autoSaveState();
             }
+        }
+
+        // 從路徑末端找到距離至少 minDistance 的點，用於計算箭頭方向
+        function findDirectionPoint(path, minDistance) {
+            if (path.length < 2) return null;
+
+            const endPoint = path[path.length - 1];
+
+            // 從後往前遍歷，找到第一個距離足夠遠的點
+            for (let i = path.length - 2; i >= 0; i--) {
+                const dx = endPoint.x - path[i].x;
+                const dy = endPoint.y - path[i].y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance >= minDistance) {
+                    return path[i];
+                }
+            }
+
+            // 如果沒有找到足夠遠的點，返回最開始的點
+            return path[0];
         }
 
         function drawArrowHead(fromX, fromY, toX, toY) {
             const headLength = brushSize * 3;
             const angle = Math.atan2(toY - fromY, toX - fromX);
-            
+
             drawingCtx.beginPath();
             drawingCtx.moveTo(toX, toY);
             drawingCtx.lineTo(
@@ -1260,9 +1437,8 @@
                 obj.x = pos.x;
                 obj.y = pos.y;
             } else if (obj.type === 'symbol') {
-                const pos = rotatePoint(obj.x, obj.y);
-                obj.x = pos.x;
-                obj.y = pos.y;
+                // 符號只自轉，不改變位置
+                obj.rotation = (obj.rotation || 0) + angle;
             }
         }
 
@@ -1334,12 +1510,56 @@
                         drawingCtx.quadraticCurveTo(prev.x, prev.y, curr.x, curr.y);
                     }
                     drawingCtx.stroke();
+
+                    // 添加箭頭：使用距離足夠遠的點計算方向
+                    if (obj.path.length >= 2) {
+                        const minDistance = obj.brushSize * 4; // 最小距離為筆刷大小的4倍
+                        const directionPoint = findDirectionPoint(obj.path, minDistance);
+                        const lastPoint = obj.path[obj.path.length - 1];
+
+                        if (directionPoint) {
+                            const headLength = obj.brushSize * 3;
+                            const angle = Math.atan2(
+                                lastPoint.y - directionPoint.y,
+                                lastPoint.x - directionPoint.x
+                            );
+
+                            drawingCtx.beginPath();
+                            drawingCtx.moveTo(lastPoint.x, lastPoint.y);
+                            drawingCtx.lineTo(
+                                lastPoint.x - headLength * Math.cos(angle - Math.PI / 6),
+                                lastPoint.y - headLength * Math.sin(angle - Math.PI / 6)
+                            );
+                            drawingCtx.moveTo(lastPoint.x, lastPoint.y);
+                            drawingCtx.lineTo(
+                                lastPoint.x - headLength * Math.cos(angle + Math.PI / 6),
+                                lastPoint.y - headLength * Math.sin(angle + Math.PI / 6)
+                            );
+                            drawingCtx.stroke();
+                        }
+                    }
                 } else if (obj.type === 'text') {
                     drawingCtx.font = `${obj.fontSize || 30}px Arial`;
                     drawingCtx.fillText(obj.text, obj.x, obj.y);
                 } else if (obj.type === 'symbol') {
-                    drawingCtx.font = `${obj.fontSize || 30}px Arial`;
-                    drawingCtx.fillText(obj.symbol, obj.x, obj.y);
+                    const fontSize = obj.fontSize || 30;
+                    const symbolLength = obj.symbol.length;
+
+                    // 計算符號的視覺中心偏移
+                    const centerOffsetX = symbolLength * fontSize * 0.8 / 2;
+                    const centerOffsetY = -fontSize / 2;
+
+                    drawingCtx.save();
+                    // 移動到錨點
+                    drawingCtx.translate(obj.x, obj.y);
+                    // 偏移到視覺中心
+                    drawingCtx.translate(centerOffsetX, centerOffsetY);
+                    // 圍繞視覺中心旋轉
+                    drawingCtx.rotate(obj.rotation || 0);
+                    // 繪製時反向偏移
+                    drawingCtx.font = `${fontSize}px Arial`;
+                    drawingCtx.fillText(obj.symbol, -centerOffsetX, -centerOffsetY);
+                    drawingCtx.restore();
                 }
 
                 // 如果是選中的物件，繪製高亮邊框和變形控制點
@@ -1435,6 +1655,7 @@
                 drawingObjects.pop();
                 selectedObject = null;
                 renderAllObjects();
+                autoSaveState(); // 自動儲存
             }
         });
 
@@ -1444,6 +1665,7 @@
                 drawingObjects = [];
                 selectedObject = null;
                 renderAllObjects();
+                autoSaveState(); // 自動儲存
             }
         });
 
@@ -1456,6 +1678,7 @@
                     selectedObject = null;
                     renderAllObjects();
                     updateDeleteButton();
+                    autoSaveState(); // 自動儲存
                 }
             }
         });
@@ -1463,14 +1686,17 @@
         // 圖層控制
         document.getElementById('layer-base').addEventListener('change', function() {
             baseCanvas.style.display = this.checked ? 'block' : 'none';
+            autoSaveState(); // 自動儲存
         });
 
         document.getElementById('layer-drawing').addEventListener('change', function() {
             drawingCanvas.style.display = this.checked ? 'block' : 'none';
+            autoSaveState(); // 自動儲存
         });
 
         document.getElementById('drawingOpacity').addEventListener('input', function() {
             drawingCanvas.style.opacity = this.value / 100;
+            autoSaveState(); // 自動儲存
         });
 
         // 匯出圖片
@@ -1479,17 +1705,42 @@
             exportCanvas.width = canvasWidth;
             exportCanvas.height = canvasHeight;
             const exportCtx = exportCanvas.getContext('2d');
-            
+
             exportCtx.drawImage(baseCanvas, 0, 0);
             exportCtx.drawImage(drawingCanvas, 0, 0);
-            
+
             exportCanvas.toBlob(function(blob) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `typhoon_model_${new Date().getTime()}.png`;
-                a.click();
-                URL.revokeObjectURL(url);
+                if (blob) {
+                    // 主要方法：使用 Blob URL
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `typhoon_model_${new Date().getTime()}.png`;
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    // 成功提示
+                    setTimeout(() => alert('✅ 圖片已成功匯出！'), 100);
+                } else {
+                    // 降級方案：使用 toDataURL
+                    try {
+                        const dataUrl = exportCanvas.toDataURL('image/png');
+                        const a = document.createElement('a');
+                        a.href = dataUrl;
+                        a.download = `typhoon_model_${new Date().getTime()}.png`;
+                        a.style.display = 'none';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+
+                        setTimeout(() => alert('✅ 圖片已成功匯出！'), 100);
+                    } catch (error) {
+                        alert('❌ 圖片匯出失敗：' + error.message);
+                    }
+                }
             });
         });
 
@@ -1564,6 +1815,9 @@
                         document.getElementById('opacityValue').textContent = Math.round(opacity * 100);
                     }
 
+                    // 自動儲存載入的專案
+                    autoSaveState();
+
                     alert('專案載入成功!');
                 } catch (error) {
                     alert('載入失敗: ' + error.message);
@@ -1576,6 +1830,33 @@
         document.getElementById('textInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 confirmText();
+            }
+        });
+
+        // 鍵盤快捷鍵：刪除選中的物件
+        document.addEventListener('keydown', function(e) {
+            // 檢查是否按下 Backspace 或 Delete
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                // 排除文字輸入面板激活狀態
+                const textInputPanel = document.getElementById('textInputPanel');
+                const isTextInputActive = textInputPanel.classList.contains('active');
+
+                // 排除正在任何輸入框中輸入
+                const isInInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+
+                // 只在有選中物件且不在輸入狀態時執行刪除
+                if (selectedObject && !isTextInputActive && !isInInput) {
+                    e.preventDefault(); // 防止 Backspace 觸發瀏覽器後退
+
+                    // 執行刪除操作
+                    const index = drawingObjects.findIndex(obj => obj.id === selectedObject.id);
+                    if (index !== -1) {
+                        drawingObjects.splice(index, 1);
+                        selectedObject = null;
+                        renderAllObjects();
+                        updateDeleteButton();
+                    }
+                }
             }
         });
     </script>
